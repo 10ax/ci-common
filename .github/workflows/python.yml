@@ -1,8 +1,7 @@
-# Reusable Python lane: lint / test / optional coverage.
+# Reusable Python lane: lint / test / optional coverage, one leg per version.
 #
 # Warnings, not gates: nothing here is a required check — a red run is a
-# signal, not a block. Callers must be private repos owned by the same account
-# (this repo is private; Access policy = "user").
+# signal, not a block. Callers must be repos owned by the same account.
 #
 # Rationale and open points: SecondBrain 000-Inbox/quality-gates-repo-personali.md
 #
@@ -11,7 +10,10 @@
 #     ci:
 #       uses: 10ax/ci-common/.github/workflows/python.yml@v1
 #       with:
-#         python-version: "3.11"
+#         python-versions: '["3.11"]'
+#         lint: |
+#           python -m compileall -q app scripts
+#           ruff check .
 #         coverage-args: "--cov=app --cov=scripts"
 
 name: python
@@ -19,15 +21,16 @@ name: python
 on:
   workflow_call:
     inputs:
-      python-version:
+      python-versions:
+        description: "JSON array of Python versions; one leg each for lint/test/coverage"
         type: string
-        default: "3.12"
+        default: '["3.12"]'
       install:
         description: "Command that installs the dependencies"
         type: string
         default: "pip install -r requirements.txt -r requirements-dev.txt"
       extras:
-        description: "Extra shell run after install (multi-line ok; e.g. compileall)"
+        description: "Extra shell after install in test/coverage (multi-line ok; e.g. system packages)"
         type: string
         default: ""
       lint:
@@ -50,7 +53,12 @@ permissions:
 
 jobs:
   lint:
+    name: lint (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,25 +67,29 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ inputs.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
         run: ${{ inputs.install }}
-      - name: Extras
-        if: inputs.extras != ''
-        run: ${{ inputs.extras }}
       - name: Lint
         run: ${{ inputs.lint }}
 
   test:
+    name: test (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      # Both legs run to completion: knowing a failure is version-specific is
+      # the whole point of having more than one.
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ inputs.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
         run: ${{ inputs.install }}
@@ -88,18 +100,26 @@ jobs:
         run: ${{ inputs.test }}
 
   coverage:
+    name: coverage (${{ matrix.python-version }})
     if: inputs.coverage-args != ''
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: ${{ inputs.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
         run: ${{ inputs.install }}
+      - name: Extras
+        if: inputs.extras != ''
+        run: ${{ inputs.extras }}
       - name: Coverage
         run: |
           pip install pytest-cov

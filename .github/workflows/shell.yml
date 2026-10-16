@@ -1,0 +1,49 @@
+# Reusable shell lane: shellcheck on the caller's targets + actionlint on the
+# caller's own workflows.
+#
+# Warnings, not gates: nothing here is a required check — a red run is a
+# signal, not a block. Callers must be repos owned by the same account.
+#
+# Caller example:
+#   jobs:
+#     ci:
+#       uses: 10ax/ci-common/.github/workflows/shell.yml@v1
+#       with:
+#         shellcheck-targets: "scripts/*.sh bin/*"
+
+name: shell
+
+on:
+  workflow_call:
+    inputs:
+      shellcheck-targets:
+        description: "Target list for shellcheck (globs expanded by the shell; empty disables the job)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    if: inputs.shellcheck-targets != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # shellcheck comes from the runner image, deliberately unpinned: the same
+      # rule the local commit hooks follow (whatever is on PATH).
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          shellcheck ${{ inputs.shellcheck-targets }}
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12

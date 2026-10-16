@@ -1,0 +1,74 @@
+# Reusable Node lane (pnpm/Next): install / lint / typecheck / test / build.
+#
+# Warnings, not gates: nothing here is a required check — a red run is a
+# signal, not a block. Callers must be repos owned by the same account.
+#
+# Rationale and open points: SecondBrain 000-Inbox/quality-gates-repo-personali.md
+#
+# Caller example:
+#   jobs:
+#     ci:
+#       uses: 10ax/ci-common/.github/workflows/node.yml@v1
+#       with:
+#         typecheck: pnpm run build-types
+
+name: node
+
+on:
+  workflow_call:
+    inputs:
+      install:
+        type: string
+        default: "pnpm install --frozen-lockfile --ignore-scripts"
+      lint:
+        type: string
+        default: "pnpm run lint"
+      typecheck:
+        type: string
+        default: "pnpm exec tsc --noEmit"
+      test:
+        type: string
+        default: "pnpm exec vitest run"
+      coverage:
+        description: "Coverage command; when set, runs after test (the tool must be a devDependency of the caller)"
+        type: string
+        default: ""
+      build:
+        type: string
+        default: "pnpm run build"
+      node-version-file:
+        type: string
+        default: ".node-version"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # pnpm before setup-node: `cache: pnpm` needs pnpm on PATH to locate the
+      # store. No `version` input — pnpm/action-setup reads package.json
+      # "packageManager", so the version lives in one place.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+          cache: pnpm
+      - name: Install
+        run: ${{ inputs.install }}
+      - name: Lint
+        run: ${{ inputs.lint }}
+      - name: Typecheck
+        run: ${{ inputs.typecheck }}
+      - name: Test
+        run: ${{ inputs.test }}
+      - name: Coverage
+        if: inputs.coverage != ''
+        run: ${{ inputs.coverage }}
+      - name: Build
+        run: ${{ inputs.build }}
