@@ -27,7 +27,8 @@ pipelines; keep it boring.
 
 - `python.yml` — `lint` (default `ruff check .`), `test` (default `pytest -q`),
   optional `coverage` (enabled by `coverage-args`, red below
-  `coverage-threshold`, default 90). One leg per version in `python-versions`
+  `coverage-threshold`, default 90; also measures subprocesses — CLIs the suite
+  runs through `subprocess` count). One leg per version in `python-versions`
   (JSON array). Inputs: `python-versions`, `cache` (default `pip`; empty
   disables it — repos without a manifest), `install`, `extras` (test/coverage
   only), `lint`, `test`, `coverage-args`, `coverage-threshold`.

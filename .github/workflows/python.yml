@@ -142,6 +142,14 @@ jobs:
       - name: Coverage
         run: |
           pip install pytest-cov
+          # Also measure subprocesses: several suites exercise CLIs through
+          # `subprocess` (vault_merge, chunking…). sitecustomize makes the
+          # children start coverage; parallel=true writes per-process data and
+          # pytest-cov combines it into the final report.
+          site=$(python -c "import site; print(site.getsitepackages()[0])")
+          printf 'import coverage\ncoverage.process_startup()\n' > "$site/sitecustomize.py"
+          printf '[run]\nparallel = true\n' > "$RUNNER_TEMP/cov-subprocess.rc"
+          export COVERAGE_PROCESS_START="$RUNNER_TEMP/cov-subprocess.rc"
           ${{ inputs.test }} ${{ inputs.coverage-args }} \
             --cov-report=term-missing \
             --cov-fail-under=${{ inputs.coverage-threshold }}
