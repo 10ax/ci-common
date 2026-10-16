@@ -1,0 +1,108 @@
+# Reusable Python lane: lint / test / optional coverage.
+#
+# Warnings, not gates: nothing here is a required check — a red run is a
+# signal, not a block. Callers must be private repos owned by the same account
+# (this repo is private; Access policy = "user").
+#
+# Rationale and open points: SecondBrain 000-Inbox/quality-gates-repo-personali.md
+#
+# Caller example:
+#   jobs:
+#     ci:
+#       uses: 10ax/ci-common/.github/workflows/python.yml@v1
+#       with:
+#         python-version: "3.11"
+#         coverage-args: "--cov=app --cov=scripts"
+
+name: python
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.12"
+      install:
+        description: "Command that installs the dependencies"
+        type: string
+        default: "pip install -r requirements.txt -r requirements-dev.txt"
+      extras:
+        description: "Extra shell run after install (multi-line ok; e.g. compileall)"
+        type: string
+        default: ""
+      lint:
+        type: string
+        default: "ruff check ."
+      test:
+        type: string
+        default: "pytest -q"
+      coverage-args:
+        description: "pytest-cov arguments; when non-empty, enables the coverage job"
+        type: string
+        default: ""
+      coverage-threshold:
+        description: "Below this the coverage job goes red (a warning, it does not block)"
+        type: number
+        default: 90
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Nothing here pushes, so don't leave an authenticated remote in
+          # .git/config for later steps to use.
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+      - name: Install
+        run: ${{ inputs.install }}
+      - name: Extras
+        if: inputs.extras != ''
+        run: ${{ inputs.extras }}
+      - name: Lint
+        run: ${{ inputs.lint }}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+      - name: Install
+        run: ${{ inputs.install }}
+      - name: Extras
+        if: inputs.extras != ''
+        run: ${{ inputs.extras }}
+      - name: Test
+        run: ${{ inputs.test }}
+
+  coverage:
+    if: inputs.coverage-args != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+      - name: Install
+        run: ${{ inputs.install }}
+      - name: Coverage
+        run: |
+          pip install pytest-cov
+          ${{ inputs.test }} ${{ inputs.coverage-args }} \
+            --cov-report=term-missing \
+            --cov-fail-under=${{ inputs.coverage-threshold }}
