@@ -25,6 +25,10 @@ on:
         description: "JSON array of Python versions; one leg each for lint/test/coverage"
         type: string
         default: '["3.12"]'
+      cache:
+        description: "setup-python cache (pip/poetry/pipenv); empty disables it (repos without a manifest)"
+        type: string
+        default: "pip"
       install:
         description: "Command that installs the dependencies"
         type: string
@@ -66,9 +70,14 @@ jobs:
           # .git/config for later steps to use.
           persist-credentials: false
       - uses: actions/setup-python@v7
+        if: inputs.cache != ''
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          cache: ${{ inputs.cache }}
+      - uses: actions/setup-python@v7
+        if: inputs.cache == ''
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install
         run: ${{ inputs.install }}
       - name: Lint
@@ -88,9 +97,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
+        if: inputs.cache != ''
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          cache: ${{ inputs.cache }}
+      - uses: actions/setup-python@v7
+        if: inputs.cache == ''
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install
         run: ${{ inputs.install }}
       - name: Extras
@@ -112,9 +126,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-python@v7
+        if: inputs.cache != ''
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          cache: ${{ inputs.cache }}
+      - uses: actions/setup-python@v7
+        if: inputs.cache == ''
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install
         run: ${{ inputs.install }}
       - name: Extras

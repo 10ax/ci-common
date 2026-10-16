@@ -28,7 +28,8 @@ pipelines; keep it boring.
 - `python.yml` — `lint` (default `ruff check .`), `test` (default `pytest -q`),
   optional `coverage` (enabled by `coverage-args`, red below
   `coverage-threshold`, default 90). One leg per version in `python-versions`
-  (JSON array). Inputs: `python-versions`, `install`, `extras` (test/coverage
+  (JSON array). Inputs: `python-versions`, `cache` (default `pip`; empty
+  disables it — repos without a manifest), `install`, `extras` (test/coverage
   only), `lint`, `test`, `coverage-args`, `coverage-threshold`.
 - `node.yml` — install / lint / typecheck / test / build for pnpm repos
   (versions read from `packageManager` + `.node-version`); optional `coverage`
